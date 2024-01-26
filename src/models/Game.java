@@ -2,6 +2,7 @@ package models;
 import exceptions.BotCountException;
 import exceptions.PlayerCountDimensionMismatchException;
 import exceptions.SymbolCountException;
+import strategies.winningStrategies.OrderOneWinningStrategy;
 import strategies.winningStrategies.WinningStrategy;
 
 import java.util.ArrayList;
@@ -14,27 +15,57 @@ public class Game {
     private List<Player> players;
     private List<Move> moves;
     private GameState gameState;
-    private int nextMovePlayerIndex;
+    private int currentPlayerIndex;
     private Player winner;
-    private List<WinningStrategy> winningStrategies;
+    private WinningStrategy winningStrategy;
+    public Board getBoard() {
+        return board;
+    }
 
-    private Game(int dimension, List<Player> players, List<WinningStrategy> winningStrategies) {
+    private Game(int dimension,
+                 List<Player> players,
+                 WinningStrategy winningStrategy){
         this.players = players;
-        this.winningStrategies = winningStrategies;
+        this.winningStrategy = winningStrategy;
         this.moves = new ArrayList<>();
-        this.nextMovePlayerIndex = 0;
+        this.currentPlayerIndex = 0;
         this.gameState = GameState.IN_PROGRESS;
         this.board = new Board(dimension);
     }
 
-    public static Builder getBuilder() {
-        return new Builder();
+    public void displayBoard(){
+        this.board.displayBoard();
     }
 
+    public void makeMove(){
+        // Figure out who's turn is it
+        Player currentPlayer = players.get(currentPlayerIndex);
+
+        // Ask that player to tell which cell to move on
+        Move move = currentPlayer.makeMove(board);
+        moves.add(move);
+
+        if(winningStrategy.checkWinner(move, board)){
+            setGameState(GameState.ENDED);
+            setWinner(currentPlayer);
+            return;
+        }
+        if(moves.size() == board.getSize() * board.getSize()){
+            // Game has drawn
+            setGameState(GameState.DRAW);
+            return;
+        }
+
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+    }
+
+    public static Builder getBuilder(){
+        return new Builder();
+    }
     public static class Builder {
-        private int dimension;
+        private int dimension ;
         private List<Player> players;
-        private List<WinningStrategy> winningStrategies;
+        private WinningStrategy winningStrategy;
 
         public Builder setDimension(int dimension) {
             this.dimension = dimension;
@@ -46,76 +77,75 @@ public class Game {
             return this;
         }
 
-        public Builder setWinningStrategies(List<WinningStrategy> winningStrategies) {
-            this.winningStrategies = winningStrategies;
+        public Builder setWinningStrategy(WinningStrategy winningStrategy) {
+            this.winningStrategy = winningStrategy;
             return this;
+
         }
 
-        public Builder addPlayer(Player player) {
+        public Builder addPlayer(Player player){
             this.players.add(player);
             return this;
         }
 
-        public Builder addWinningStrategy(WinningStrategy winningStrategy) {
-            this.winningStrategies.add(winningStrategy);
-            return this;
-        }
-
-        private void validateBotCount() throws BotCountException, PlayerCountDimensionMismatchException, SymbolCountException {
+        //        public Builder addWinningStrategy(WinningStrategy winningStrategy){
+//            this.winningStrategies.add(winningStrategy);
+//            return this;
+//
+//        }
+        private void validateBotCount() throws BotCountException {
             int botCount = 0;
-            for (Player player : players) {
-                if (player.getPlayerType().equals(PlayerType.BOT))
-                    botCount++;
+            for(Player p : players){
+                if(p.getPlayerType().equals(PlayerType.BOT)){
+                    botCount += 1;
+                }
             }
-            if (botCount > 1) {
+            if(botCount > 1){
                 throw new BotCountException();
             }
         }
 
-        private void validatePlayerCount() throws BotCountException, PlayerCountDimensionMismatchException, SymbolCountException {
-            if (players.size() != dimension -1) {
+        private void validatePlayersCount() throws PlayerCountDimensionMismatchException {
+
+
+            if(players.size() != dimension - 1){
                 throw new PlayerCountDimensionMismatchException();
             }
         }
 
-        private void validateSymbolCount() throws BotCountException, PlayerCountDimensionMismatchException, SymbolCountException {
-            Map<Character, Integer> symbolCount = new HashMap<>();
+        private void validateSymbolsCount() throws SymbolCountException {
+            Map<Character , Integer> symCount = new HashMap<>();
 
-            for (Player player : players) {
-                if (!symbolCount.containsKey(player.getSymbol().getaChar())) {
-                    symbolCount.put(player.getSymbol().getaChar(), 0);
+            for(Player p : players) {
+                if (!symCount.containsKey(p.getSymbol().getaChar())) {
+                    symCount.put(p.getSymbol().getaChar(), 0);
                 }
-                symbolCount.put(player.getSymbol().getaChar(), symbolCount.get(player.getSymbol().getaChar())+1);
 
-                if (symbolCount.get(player.getSymbol().getaChar()) > 1) {
+                symCount.put(p.getSymbol().getaChar(),
+                        symCount.get(p.getSymbol().getaChar()) + 1);
+
+                if (symCount.get(p.getSymbol().getaChar()) > 1) {
                     throw new SymbolCountException();
                 }
             }
         }
         private void validate() throws BotCountException, PlayerCountDimensionMismatchException, SymbolCountException {
-            // validate
-            // 1. only 1 bot player
-            // 2. no.of players == dimension - 1
-            // 3. validate diff symbol for every player
+            // validate single Bot players
             validateBotCount();
-            validatePlayerCount();
-            validateSymbolCount();
+            // validate no of players == dimension - 1
+            validatePlayersCount();
+            // validate diff symbol for every player
+            validateSymbolsCount();
         }
-
         public Game build() throws BotCountException, SymbolCountException, PlayerCountDimensionMismatchException {
             validate();
             return new Game(
                     this.dimension,
                     this.players,
-                    this.winningStrategies
+                    this.winningStrategy
             );
         }
     }
-
-    public Board getBoard() {
-        return board;
-    }
-
     public void setBoard(Board board) {
         this.board = board;
     }
@@ -144,12 +174,12 @@ public class Game {
         this.gameState = gameState;
     }
 
-    public int getNextMovePlayerIndex() {
-        return nextMovePlayerIndex;
+    public int getCurrentPlayerIndex() {
+        return currentPlayerIndex;
     }
 
-    public void setNextMovePlayerIndex(int nextMovePlayerIndex) {
-        this.nextMovePlayerIndex = nextMovePlayerIndex;
+    public void setCurrentPlayerIndex(int currentPlayerIndex) {
+        this.currentPlayerIndex = currentPlayerIndex;
     }
 
     public Player getWinner() {
@@ -160,11 +190,28 @@ public class Game {
         this.winner = winner;
     }
 
-    public List<WinningStrategy> getWinningStrategies() {
-        return winningStrategies;
+    public WinningStrategy getWinningStrategy() {
+        return winningStrategy;
     }
 
-    public void setWinningStrategies(List<WinningStrategy> winningStrategies) {
-        this.winningStrategies = winningStrategies;
+    public void setWinningStrategy(WinningStrategy winningStrategy) {
+        this.winningStrategy = winningStrategy;
+    }
+
+    public void undo(){
+        // Get the previous player
+        // Make sure only human players can do a undo
+        // For bot, just return
+        // sout do you want to undo
+        // yes or no
+        // if the player says, return
+        // Now actual undo logic begins
+        /*
+        1. Remove last entry from moves
+        2. update the board, update cell state and player
+        3. update the orderone winningstrategy maps (winningStrategy.handleUndo())
+
+         */
+
     }
 }

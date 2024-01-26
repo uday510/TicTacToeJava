@@ -11,25 +11,38 @@ import strategies.winningStrategies.WinningStrategy;
 import java.util.List;
 
 public class GameController {
-    public Game startGame(int dimension, List<Player> players, List<WinningStrategy> winningStrategies) throws BotCountException, SymbolCountException, PlayerCountDimensionMismatchException {
-        // create new game here.
-                return Game.getBuilder()
-                            .setDimension(dimension)
-                            .setWinningStrategies(winningStrategies)
-                            .build();
+    public Game startGame(int dimension,
+                          List<Player> players,
+                          WinningStrategy winningStrategy) throws BotCountException, SymbolCountException, PlayerCountDimensionMismatchException {
+        // we will create the game
+        // we need to validate
+//        game.getbuilder().setplayers(...).setWinning(...);
+//        game.addplayer().addplayer().addwinningstrategt();
+        return Game.getBuilder()
+                .setDimension(dimension)
+                .setPlayers(players)
+                .setWinningStrategy(winningStrategy)
+                .build();
     }
 
-    public GameController(Game game) {
-
+    public void makeMove(Game game){
+        game.makeMove();
     }
 
-    public void makeMove(Game game) {}
+    public void displayBoard(Game game){
+        game.displayBoard();
+    }
 
-    public void displayBoard(Game game) {}
+    public Player getWinner(Game game){
+        return game.getWinner();
+    }
 
-    public Player getWinner(Game game) { return  null; }
+    public GameState checkState(Game game){
+        return game.getGameState();
+    }
 
-    public GameState checkState(Game game) { return null; }
+    public void undo(Game game){
+        game.undo();
+    }
 
-    public void undo() {}
 }
